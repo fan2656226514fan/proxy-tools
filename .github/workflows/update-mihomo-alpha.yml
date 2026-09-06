@@ -1,9 +1,9 @@
-```yaml
-name: Update Mihomo Alpha ARM64 UPX
+name: Update Mihomo Alpha ARM64
 
 on:
   schedule:
-    # 每天北京时间 04:30
+    # 每天北京时间 04:30 执行
+    # GitHub Actions 使用 UTC，所以这里是 20:30 UTC
     - cron: "30 20 * * *"
 
   workflow_dispatch:
@@ -19,11 +19,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install UPX
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y upx-ucl
-
       - name: Get latest Mihomo Alpha version
         id: version
         shell: bash
@@ -36,7 +31,7 @@ jobs:
           VERSION=$(echo "$VERSION" | tr -d '\r\n')
 
           if [ -z "$VERSION" ]; then
-            echo "获取 Mihomo Alpha 版本失败"
+            echo "无法获取 Mihomo Alpha 版本"
             exit 1
           fi
 
@@ -58,94 +53,43 @@ jobs:
             --retry 5 \
             --retry-delay 3 \
             "$URL" \
-            -o mihomo.gz
+            -o mihomo-linux-arm64.gz
 
-      - name: Extract Mihomo
+      - name: Verify and extract
         shell: bash
         run: |
           set -e
 
-          gzip -t mihomo.gz
-          gzip -dc mihomo.gz > mihomo-alpha-linux-arm64.upx
+          gzip -t mihomo-linux-arm64.gz
 
-          chmod +x mihomo-alpha-linux-arm64.upx
+          rm -f mihomo-linux-arm64
+
+          gzip -dc mihomo-linux-arm64.gz > mihomo-linux-arm64
+
+          chmod +x mihomo-linux-arm64
 
           echo "文件信息："
-          file mihomo-alpha-linux-arm64.upx
+          file mihomo-linux-arm64
 
-      - name: Compress with UPX
+      - name: Save version
+        shell: bash
+        run: |
+          echo "${{ steps.version.outputs.version }}" > mihomo-version.txt
+
+      - name: Commit latest Alpha
         shell: bash
         run: |
           set -e
 
-          echo "UPX 压缩前："
-          ls -lh mihomo-alpha-linux-arm64.upx
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          upx --best --lzma mihomo-alpha-linux-arm64.upx
+          git add mihomo-linux-arm64 mihomo-linux-arm64.gz mihomo-version.txt
 
-          echo "UPX 压缩后："
-          ls -lh mihomo-alpha-linux-arm64.upx
-
-      - name: Verify UPX
-        shell: bash
-        run: |
-          set -e
-
-          upx -t mihomo-alpha-linux-arm64.upx
-
-          echo "最终文件信息："
-          file mihomo-alpha-linux-arm64.upx
-
-      - name: Create or update GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -e
-
-          TAG="mihomo"
-
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG 已存在"
-          else
-            echo "创建 Release $TAG"
-
-            gh release create "$TAG" \
-              --title "Mihomo Alpha" \
-              --notes "自动更新 Mihomo Alpha ARM64 UPX"
+          if git diff --cached --quiet; then
+            echo "没有新版本，不提交"
+            exit 0
           fi
 
-      - name: Upload UPX asset
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -e
-
-          gh release upload \
-            mihomo \
-            mihomo-alpha-linux-arm64.upx \
-            --clobber
-
-      - name: Update release notes
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -e
-
-          VERSION="${{ steps.version.outputs.version }}"
-
-          cat > release-notes.md <<EOF
-Mihomo Alpha ARM64 UPX
-
-版本：$VERSION
-
-架构：linux-arm64
-压缩：UPX --best --lzma
-EOF
-
-          gh release edit mihomo \
-            --title "Mihomo Alpha $VERSION" \
-            --notes-file release-notes.md
-```
+          git commit -m "Update Mihomo Alpha ${{ steps.version.outputs.version }}"
+          git push
