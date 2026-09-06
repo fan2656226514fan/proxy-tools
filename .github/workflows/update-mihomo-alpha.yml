@@ -55,7 +55,7 @@ jobs:
             "$URL" \
             -o mihomo-linux-arm64.gz
 
-      - name: Verify and extract
+      - name: Verify, extract and pack to tar.gz
         shell: bash
         run: |
           set -e
@@ -68,20 +68,8 @@ jobs:
 
           chmod +x mihomo-linux-arm64
 
-          echo "文件信息："
-          file mihomo-linux-arm64
-
-      - name: Compress with UPX
-        shell: bash
-        run: |
-          set -e
-
-          if ! command -v upx &> /dev/null; then
-            sudo apt-get install -y upx || (sudo apt-get update && sudo apt-get install -y upx)
-          fi
-
-          upx -o mihomo-alpha-linux-arm64.upx mihomo-linux-arm64
-          chmod +x mihomo-alpha-linux-arm64.upx
+          # 打包为 tar.gz
+          tar -czvf mihomo-alpha-linux-arm64.tar.gz mihomo-linux-arm64
 
       - name: Save version
         shell: bash
@@ -96,7 +84,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add mihomo-linux-arm64 mihomo-linux-arm64.gz mihomo-version.txt mihomo-alpha-linux-arm64.upx
+          git add mihomo-alpha-linux-arm64.tar.gz mihomo-version.txt
 
           if git diff --cached --quiet; then
             echo "没有新版本，不提交"
