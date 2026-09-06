@@ -59,59 +59,79 @@ jobs:
             "$URL" \
             -o mihomo.gz
 
-      - name: Extract original binary
+      - name: Extract Mihomo
         run: |
           set -e
 
           gzip -t mihomo.gz
-          gzip -dc mihomo.gz > mihomo-linux-arm64
-          chmod +x mihomo-linux-arm64
+          gzip -dc mihomo.gz > mihomo-alpha-linux-arm64.upx
+
+          chmod +x mihomo-alpha-linux-arm64.upx
 
       - name: Compress with UPX
         run: |
           set -e
 
           echo "UPX 压缩前："
-          ls -lh mihomo-linux-arm64
+          ls -lh mihomo-alpha-linux-arm64.upx
 
-          upx --best --lzma mihomo-linux-arm64
+          upx --best --lzma mihomo-alpha-linux-arm64.upx
 
           echo "UPX 压缩后："
-          ls -lh mihomo-linux-arm64
+          ls -lh mihomo-alpha-linux-arm64.upx
 
-      - name: Verify UPX binary
+      - name: Verify UPX
         run: |
           set -e
 
-          echo "验证 UPX："
-          upx -t mihomo-linux-arm64
+          upx -t mihomo-alpha-linux-arm64.upx
 
-          echo "文件类型："
-          file mihomo-linux-arm64
+          echo "文件信息："
+          file mihomo-alpha-linux-arm64.upx
 
-      - name: Save version
-        run: |
-          echo "${{ steps.version.outputs.version }}" > mihomo-version.txt
-
-      - name: Remove old gzip file
-        run: |
-          rm -f mihomo-linux-arm64.gz
-          rm -f mihomo-original.gz
-
-      - name: Commit update
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -e
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          TAG="mihomo"
 
-          git add -A
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在"
+          else
+            echo "创建 Release $TAG"
 
-          if git diff --cached --quiet; then
-            echo "没有新版本"
-            exit 0
+            gh release create "$TAG" \
+              --title "Mihomo Alpha" \
+              --notes "自动更新 Mihomo Alpha ARM64 UPX"
           fi
 
-          git commit -m "Update Mihomo Alpha ${{ steps.version.outputs.version }} UPX"
-          git push
+      - name: Upload UPX asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -e
+
+          gh release upload \
+            mihomo \
+            mihomo-alpha-linux-arm64.upx \
+            --clobber
+
+      - name: Update release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          gh release edit mihomo \
+            --title "Mihomo Alpha $VERSION" \
+            --notes "Mihomo Alpha ARM64 UPX
+
+版本：$VERSION
+
+架构：linux-arm64
+压缩：UPX --best --lzma"
