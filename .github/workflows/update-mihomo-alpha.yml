@@ -1,3 +1,4 @@
+```yaml
 name: Update Mihomo Alpha ARM64 UPX
 
 on:
@@ -60,6 +61,7 @@ jobs:
             -o mihomo.gz
 
       - name: Extract Mihomo
+        shell: bash
         run: |
           set -e
 
@@ -68,7 +70,11 @@ jobs:
 
           chmod +x mihomo-alpha-linux-arm64.upx
 
+          echo "文件信息："
+          file mihomo-alpha-linux-arm64.upx
+
       - name: Compress with UPX
+        shell: bash
         run: |
           set -e
 
@@ -81,12 +87,13 @@ jobs:
           ls -lh mihomo-alpha-linux-arm64.upx
 
       - name: Verify UPX
+        shell: bash
         run: |
           set -e
 
           upx -t mihomo-alpha-linux-arm64.upx
 
-          echo "文件信息："
+          echo "最终文件信息："
           file mihomo-alpha-linux-arm64.upx
 
       - name: Create or update GitHub Release
@@ -125,13 +132,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
+          set -e
+
           VERSION="${{ steps.version.outputs.version }}"
 
-          gh release edit mihomo \
-            --title "Mihomo Alpha $VERSION" \
-            --notes "Mihomo Alpha ARM64 UPX
+          cat > release-notes.md <<EOF
+Mihomo Alpha ARM64 UPX
 
 版本：$VERSION
 
 架构：linux-arm64
-压缩：UPX --best --lzma"
+压缩：UPX --best --lzma
+EOF
+
+          gh release edit mihomo \
+            --title "Mihomo Alpha $VERSION" \
+            --notes-file release-notes.md
+```
