@@ -76,8 +76,11 @@ jobs:
         run: |
           set -e
 
-          sudo apt-get update && sudo apt-get install -y upx
-          upx --best -o mihomo-alpha-linux-arm64.upx mihomo-linux-arm64
+          if ! command -v upx &> /dev/null; then
+            sudo apt-get install -y upx || (sudo apt-get update && sudo apt-get install -y upx)
+          fi
+
+          upx -o mihomo-alpha-linux-arm64.upx mihomo-linux-arm64
           chmod +x mihomo-alpha-linux-arm64.upx
 
       - name: Save version
