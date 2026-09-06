@@ -1,9 +1,8 @@
-name: Update Mihomo Alpha ARM64
+name: Update Mihomo Alpha ARM64 UPX
 
 on:
   schedule:
-    # 每天北京时间 04:30 执行
-    # GitHub Actions 使用 UTC，所以这里是 20:30 UTC
+    # 每天北京时间 04:30
     - cron: "30 20 * * *"
 
   workflow_dispatch:
@@ -19,6 +18,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install UPX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y upx-ucl
+
       - name: Get latest Mihomo Alpha version
         id: version
         shell: bash
@@ -31,15 +35,14 @@ jobs:
           VERSION=$(echo "$VERSION" | tr -d '\r\n')
 
           if [ -z "$VERSION" ]; then
-            echo "无法获取 Mihomo Alpha 版本"
+            echo "获取版本失败"
             exit 1
           fi
 
           echo "最新 Alpha: $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Download Mihomo ARM64 Alpha
-        shell: bash
+      - name: Download Mihomo ARM64
         run: |
           set -e
 
@@ -53,30 +56,54 @@ jobs:
             --retry 5 \
             --retry-delay 3 \
             "$URL" \
-            -o mihomo-linux-arm64.gz
+            -o mihomo-original.gz
 
-      - name: Verify and extract
-        shell: bash
+      - name: Extract Mihomo
         run: |
           set -e
 
-          gzip -t mihomo-linux-arm64.gz
+          gzip -t mihomo-original.gz
 
-          rm -f mihomo-linux-arm64
-
-          gzip -dc mihomo-linux-arm64.gz > mihomo-linux-arm64
+          gzip -dc mihomo-original.gz > mihomo-linux-arm64
 
           chmod +x mihomo-linux-arm64
 
-          echo "文件信息："
+      - name: Show original size
+        run: |
+          echo "原始文件："
+          ls -lh mihomo-linux-arm64
+
+      - name: Compress with UPX
+        run: |
+          set -e
+
+          upx --version
+
+          upx --best --lzma mihomo-linux-arm64
+
+      - name: Verify UPX
+        run: |
+          set -e
+
+          echo "UPX 文件信息："
+          upx -t mihomo-linux-arm64
+
+          echo "压缩后："
+          ls -lh mihomo-linux-arm64
+
           file mihomo-linux-arm64
 
+      - name: Gzip UPX binary
+        run: |
+          set -e
+
+          gzip -9 -c mihomo-linux-arm64 > mihomo-linux-arm64.gz
+
       - name: Save version
-        shell: bash
         run: |
           echo "${{ steps.version.outputs.version }}" > mihomo-version.txt
 
-      - name: Commit latest Alpha
+      - name: Commit update
         shell: bash
         run: |
           set -e
@@ -84,12 +111,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add mihomo-linux-arm64 mihomo-linux-arm64.gz mihomo-version.txt
+          git add mihomo-linux-arm64
+          git add mihomo-linux-arm64.gz
+          git add mihomo-version.txt
 
           if git diff --cached --quiet; then
-            echo "没有新版本，不提交"
+            echo "没有新版本"
             exit 0
           fi
 
-          git commit -m "Update Mihomo Alpha ${{ steps.version.outputs.version }}"
+          git commit -m "Update Mihomo Alpha ${{ steps.version.outputs.version }} UPX"
           git push
