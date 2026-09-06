@@ -71,21 +71,6 @@ jobs:
           echo "文件信息："
           file mihomo-linux-arm64
 
-      - name: Create tar.gz
-        shell: bash
-        run: |
-          set -e
-
-          VERSION="${{ steps.version.outputs.version }}"
-
-          rm -f "mihomo-linux-arm64-${VERSION}.tar.gz"
-
-          tar -czf "mihomo-linux-arm64-${VERSION}.tar.gz" \
-            mihomo-linux-arm64
-
-          echo "压缩包信息："
-          tar -tzvf "mihomo-linux-arm64-${VERSION}.tar.gz"
-
       - name: Save version
         shell: bash
         run: |
@@ -99,9 +84,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add \
-            "mihomo-linux-arm64-${{ steps.version.outputs.version }}.tar.gz" \
-            mihomo-version.txt
+          git add mihomo-linux-arm64 mihomo-linux-arm64.gz mihomo-version.txt
 
           if git diff --cached --quiet; then
             echo "没有新版本，不提交"
