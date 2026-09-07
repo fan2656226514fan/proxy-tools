@@ -1,4 +1,3 @@
-```yaml
 name: Update mihomo
 
 on:
@@ -503,4 +502,3 @@ jobs:
 
           file_glob: true
           file: ./mihomo/*
-```
