@@ -2,11 +2,9 @@ name: Update mihomo
 
 on:
   workflow_dispatch:
-
   schedule:
-    # 每天 UTC 04:30 执行
-    # 北京时间 12:30
-    - cron: "30 4 * * *"
+    # 每天北京时间 04:30（UTC 20:30）
+    - cron: "30 20 * * *"
 
   push:
     branches:
